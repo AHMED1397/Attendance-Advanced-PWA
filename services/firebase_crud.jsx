@@ -23,7 +23,7 @@ async function readUserData(value) {
       console.log("No data available");
     }
   } catch (error) {
-    console.log("student", error);
+    console.error("Error reading data:", error);
   }
 }
 

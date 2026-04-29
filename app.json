@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Attendance App",
-    "slug": "Attendance App",
+    "slug": "Attendance-App",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,33 +9,66 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/icons/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.ahmed_1397.AttendanceApp",
+      "runtimeVersion": "1.0.0"
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "shortName": "Attendance",
+      "themeColor": "#ffffff",
+      "meta": {
+        "description": "Employee attendance tracking application",
+        "mobileAppIOSColors": {
+          "backgroundColor": "#ffffff"
+        },
+        "appleMobileWebCapable": "yes",
+        "appleMobileWebAppCapable": "yes",
+        "appleMobileWebAppStatusBarStyle": "default",
+        "icon": "./assets/images/icon.png"
+      }
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash.png",
+          "image": "./assets/icons/splash-icon-dark.png",
           "imageWidth": 200,
           "resizeMode": "cover",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-updates"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "5c48a858-55e1-4b4b-91b7-dc7a8419f017"
+      }
+    },
+    "owner": "ahmed_1397",
+    "updates": {
+      "url": "https://u.expo.dev/5c48a858-55e1-4b4b-91b7-dc7a8419f017",
+      "enabled": true,
+      "checkOnLaunch": "ALWAYS",
+      "fallbackToCacheTimeout": 0
     }
   }
 }
