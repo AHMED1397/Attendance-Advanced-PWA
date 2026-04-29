@@ -32,6 +32,17 @@ export default function RootLayout() {
             );
           } else if (route.name === "summary") {
             iconName = focused ? "stats-chart" : "stats-chart-outline";
+          } else if (route.name === "blacklist") {
+            return (
+              <View style={focused ? {
+                backgroundColor: '#DC262618',
+                borderRadius: 12,
+                paddingHorizontal: 16,
+                paddingVertical: 6,
+              } : {}}>
+                <MaterialCommunityIcons name="account-cancel" size={focused ? 22 : 20} color={focused ? '#DC2626' : color} />
+              </View>
+            );
           } else if (route.name === "settings") {
             iconName = focused ? "settings" : "settings-outline";
           }
@@ -91,6 +102,13 @@ export default function RootLayout() {
       <Tabs.Screen 
         name="summary" 
         options={{ title: t("summary", language) }}
+      />
+      <Tabs.Screen 
+        name="blacklist" 
+        options={{ 
+          title: t("blacklist", language),
+          tabBarActiveTintColor: '#DC2626',
+        }}
       />
       <Tabs.Screen 
         name="settings" 

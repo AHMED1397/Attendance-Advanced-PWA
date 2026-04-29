@@ -8,6 +8,7 @@ import { readUserData } from '../services/firebase_crud';
 import { useRouter } from 'expo-router';
 import { useSettings } from '../services/SettingsContext';
 import NetInfo from '@react-native-community/netinfo';
+import { t } from '../services/translations';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -45,6 +46,8 @@ const StudentProfile = () => {
   const [selectedStudent, setSelectedStudent] = useState('');
   const [studentsInClass, setStudentsInClass] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+  const [blacklistHistory, setBlacklistHistory] = useState([]);
+  const { language } = useSettings();
 
   useEffect(() => {
     const load = async () => {
@@ -94,6 +97,31 @@ const StudentProfile = () => {
       setStudentsInClass({});
     }
   }, [selectedClass, initialData]);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (!selectedStudent) {
+        setBlacklistHistory([]);
+        return;
+      }
+      try {
+        const netState = await NetInfo.fetch();
+        if (netState.isConnected) {
+          const data = await readUserData(`blacklistHistory/${selectedStudent}`);
+          if (data) {
+            const histArray = Object.keys(data).map(blockId => data[blockId]);
+            histArray.sort((a, b) => new Date(b.blockedAt) - new Date(a.blockedAt));
+            setBlacklistHistory(histArray);
+          } else {
+            setBlacklistHistory([]);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchHistory();
+  }, [selectedStudent]);
 
   // ── Compute Analytics ──
   const analytics = useMemo(() => {
@@ -397,6 +425,45 @@ const StudentProfile = () => {
                       </View>
                     ))}
                   </View>
+                </View>
+              </Animated.View>
+            )}
+
+            {/* Blacklist History */}
+            {blacklistHistory.length > 0 && (
+              <Animated.View entering={FadeInUp.delay(600).duration(600).springify()} className="px-5 mt-4">
+                <View className="bg-surface rounded-2xl p-5 border border-slate-50" style={{ shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 12, elevation: 3 }}>
+                  <Text className="text-text-sub text-xs font-semibold uppercase tracking-wider mb-4">
+                    {t('blacklistHistory', language)}
+                  </Text>
+                  {blacklistHistory.map((item, i) => {
+                    const isActive = item.status === 'blocked';
+                    const dateStr = new Date(item.blockedAt).toLocaleDateString();
+                    return (
+                      <View key={i} className="mb-3 p-3 rounded-xl border border-slate-100" style={{ backgroundColor: isActive ? '#FEF2F2' : '#F8FAFC' }}>
+                        <View className="flex-row justify-between items-center mb-2">
+                          <View className="flex-row items-center">
+                            <MaterialCommunityIcons name={isActive ? "account-alert" : "account-check"} size={16} color={isActive ? "#DC2626" : "#10B981"} />
+                            <Text className="text-xs font-bold ml-1" style={{ color: isActive ? '#DC2626' : '#10B981' }}>
+                              {isActive ? t('active', language) : t('unblocked', language)}
+                            </Text>
+                          </View>
+                          <Text className="text-[10px] text-text-sub">{dateStr}</Text>
+                        </View>
+                        <Text className="text-xs text-text-main mb-2">{item.reason}</Text>
+                        <View className="flex-row items-center">
+                          <Ionicons name="person-outline" size={12} color="#64748B" />
+                          <Text className="text-[10px] text-text-sub ml-1">{t('blockedBy', language)}: {item.blockedBy}</Text>
+                        </View>
+                        {!isActive && item.unblockedBy && (
+                          <View className="flex-row items-center mt-1">
+                            <MaterialCommunityIcons name="account-key-outline" size={12} color="#10B981" />
+                            <Text className="text-[10px] text-emerald-600 ml-1">{t('unblockedBy', language)}: {item.unblockedBy}</Text>
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })}
                 </View>
               </Animated.View>
             )}

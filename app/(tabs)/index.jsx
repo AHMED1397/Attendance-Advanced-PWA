@@ -40,7 +40,7 @@ const Index = () => {
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
 
   // What's New modal
-  const CURRENT_VERSION = '1.1.0';
+  const CURRENT_VERSION = '1.2.0';
   const [showWhatsNew, setShowWhatsNew] = useState(false);
 
   useEffect(() => {
@@ -131,28 +131,33 @@ const Index = () => {
   };
 
   const getFilteredRecords = () => {
-    let records = [...attendanceDetails].reverse().slice(0, 20);
+    let records = [...attendanceDetails].reverse();
     
-    if (filterClass) {
-      records = records.filter(item => item.Class === filterClass);
+    if (hasActiveFilters()) {
+      if (filterClass) {
+        records = records.filter(item => item.Class === filterClass);
+      }
+      if (filterSubject) {
+        records = records.filter(item => item.Subject === filterSubject);
+      }
+      if (filterStartDate) {
+        const start = filterStartDate.getTime();
+        records = records.filter(item => {
+          const itemDate = new Date(item.Date).getTime();
+          return itemDate >= start;
+        });
+      }
+      if (filterEndDate) {
+        const end = filterEndDate.getTime();
+        records = records.filter(item => {
+          const itemDate = new Date(item.Date).getTime();
+          return itemDate <= end;
+        });
+      }
+    } else {
+      records = records.slice(0, 20);
     }
-    if (filterSubject) {
-      records = records.filter(item => item.Subject === filterSubject);
-    }
-    if (filterStartDate) {
-      const start = filterStartDate.getTime();
-      records = records.filter(item => {
-        const itemDate = new Date(item.Date).getTime();
-        return itemDate >= start;
-      });
-    }
-    if (filterEndDate) {
-      const end = filterEndDate.getTime();
-      records = records.filter(item => {
-        const itemDate = new Date(item.Date).getTime();
-        return itemDate <= end;
-      });
-    }
+    
     return records;
   };
 

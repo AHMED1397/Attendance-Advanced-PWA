@@ -1,4 +1,4 @@
-import { ref, set, onValue, get, update } from "firebase/database";
+import { ref, set, onValue, get, update, remove } from "firebase/database";
 import database from "./firebase_initialize.jsx";
 
 async function writeUserData(path, data) {
@@ -27,4 +27,10 @@ async function readUserData(value) {
   }
 }
 
-export { writeUserData, readUserData, updateUserData };
+async function deleteUserData(path) {
+  const db = database;
+  const dbref = ref(db, path);
+  await remove(dbref);
+}
+
+export { writeUserData, readUserData, updateUserData, deleteUserData };

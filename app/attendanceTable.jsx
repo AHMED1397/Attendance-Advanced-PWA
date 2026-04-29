@@ -1,33 +1,81 @@
 import { View, Text, ScrollView, Dimensions, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import React, { useEffect, useRef, useState, useCallback, memo } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { getData, getSigleData, storeAttendance } from '../services/asyncStorage';
+import { getData, getSigleData, storeAttendance, storeData } from '../services/asyncStorage';
+import { readUserData } from '../services/firebase_crud';
+import NetInfo from '@react-native-community/netinfo';
 import Checkbox from 'expo-checkbox';
 import { useSettings } from '../services/SettingsContext';
 import { t } from '../services/translations';
 import { fetchQadrConfig } from '../services/qadrConfig';
 import QadrProgressModal from '../components/QadrProgressModal';
 
+
 // Memoized TableRow Component
-const TableRow = memo(({ item, index, isPresent, onToggle, primaryColor, isDark }) => {
+const TableRow = memo(({ item, index, isPresent, onToggle, primaryColor, isDark, blacklistEntry, language }) => {
   const [rollNo, name] = item;
+  const isBlocked = !!blacklistEntry;
+
   return (
-    <View 
-      className="flex-row items-center px-4 py-3.5"
-      style={{ backgroundColor: index % 2 === 0 ? (isDark ? '#1E293B' : '#FFFFFF') : (isDark ? '#1A2332' : '#F8FAFC') }}
+    <View
+      className="px-4 py-3.5"
+      style={{
+        backgroundColor: isBlocked
+          ? (isDark ? '#2D1215' : '#FEF2F2')
+          : (index % 2 === 0 ? (isDark ? '#1E293B' : '#FFFFFF') : (isDark ? '#1A2332' : '#F8FAFC')),
+        borderLeftWidth: isBlocked ? 3 : 0,
+        borderLeftColor: isBlocked ? '#DC2626' : 'transparent',
+      }}
     >
-      <Text className="text-text-sub text-xs w-[10%] text-center font-medium">{index + 1}</Text>
-      <Text className="text-text-main text-xs w-[25%] text-center font-semibold">{rollNo}</Text>
-      <Text className="text-text-main text-xs w-[45%] text-center" numberOfLines={1}>{name}</Text>
-      <View className="w-[20%] items-center">
-        <Checkbox
-          value={isPresent}
-          onValueChange={(newValue) => onToggle(rollNo, newValue)}
-          color={isPresent ? primaryColor : '#CBD5E1'}
-          style={{ width: 22, height: 22, borderRadius: 6 }}
-        />
+      <View className="flex-row items-center">
+        <Text
+          className="text-xs w-[10%] text-center font-medium"
+          style={{ color: isBlocked ? '#DC2626' : undefined }}
+        >
+          {index + 1}
+        </Text>
+        <Text
+          className="text-xs w-[25%] text-center font-semibold"
+          style={{ color: isBlocked ? '#DC2626' : undefined }}
+        >
+          {rollNo}
+        </Text>
+        <View className="w-[45%] items-center">
+          <Text
+            className="text-xs text-center font-medium"
+            style={{ color: isBlocked ? '#DC2626' : undefined }}
+            numberOfLines={1}
+          >
+            {name}
+          </Text>
+          {isBlocked && (
+            <View className="flex-row items-center mt-1">
+              <MaterialCommunityIcons name="cancel" size={10} color="#DC2626" />
+              <Text className="text-[9px] ml-1 font-medium" style={{ color: '#DC2626' }}>
+                {blacklistEntry.reason}
+              </Text>
+            </View>
+          )}
+        </View>
+        <View className="w-[20%] items-center">
+          {isBlocked ? (
+            <View
+              className="w-[22px] h-[22px] rounded-md items-center justify-center"
+              style={{ backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA' }}
+            >
+              <MaterialCommunityIcons name="cancel" size={14} color="#DC2626" />
+            </View>
+          ) : (
+            <Checkbox
+              value={isPresent}
+              onValueChange={(newValue) => onToggle(rollNo, newValue)}
+              color={isPresent ? primaryColor : '#CBD5E1'}
+              style={{ width: 22, height: 22, borderRadius: 6 }}
+            />
+          )}
+        </View>
       </View>
     </View>
   );
@@ -43,6 +91,10 @@ const AttendanceTable = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { primaryColor, theme, language } = useSettings();
   const isDark = theme === 'dark';
+
+  // Blacklist data
+  const [blacklistData, setBlacklistData] = useState({});
+  const isEligibleForBlacklist = className !== "الصف السادس";
 
   // Qadr progress tracking
   const [showQadrModal, setShowQadrModal] = useState(false);
@@ -62,6 +114,11 @@ const AttendanceTable = () => {
             setAttendance(initialAttendance);
           }
         }
+
+        // Fetch blacklist for eligible classes
+        if (className !== "الصف السادس") {
+          await fetchBlacklist();
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -80,9 +137,48 @@ const AttendanceTable = () => {
     loadQadrConfig();
   }, [className, subject]);
 
+  const fetchBlacklist = async () => {
+    try {
+      const netState = await NetInfo.fetch();
+      if (netState.isConnected) {
+        const data = await readUserData('blacklist');
+        if (data) {
+          setBlacklistData(data);
+          await storeData(data, 'blacklistData');
+        }
+      } else {
+        const cached = await getData('blacklistData');
+        if (cached) setBlacklistData(cached);
+      }
+    } catch (error) {
+      console.error('Error fetching blacklist:', error);
+      const cached = await getData('blacklistData');
+      if (cached) setBlacklistData(cached);
+    }
+  };
+
+  // Force blocked students to absent
+  useEffect(() => {
+    if (isEligibleForBlacklist && Object.keys(blacklistData).length > 0) {
+      setAttendance(prev => {
+        const updated = { ...prev };
+        Object.keys(blacklistData).forEach(rollNo => {
+          if (blacklistData[rollNo].className === className) {
+            updated[rollNo] = false;
+          }
+        });
+        return updated;
+      });
+    }
+  }, [blacklistData, isEligibleForBlacklist, className]);
+
   const handleToggle = useCallback((rollNo, newValue) => {
+    // Prevent toggling for blacklisted students
+    if (isEligibleForBlacklist && blacklistData[rollNo] && blacklistData[rollNo].className === className) {
+      return;
+    }
     setAttendance((prev) => ({ ...prev, [rollNo]: newValue }));
-  }, []);
+  }, [isEligibleForBlacklist, blacklistData, className]);
 
   const handleSubmit = async () => {
     // Save attendance first
@@ -123,6 +219,11 @@ const AttendanceTable = () => {
     ? Object.entries(initialData.students[className])
     : [];
 
+  // Get blacklisted count for this class
+  const blockedInClass = isEligibleForBlacklist
+    ? Object.entries(blacklistData).filter(([, e]) => e.className === className).length
+    : 0;
+
   const presentCount = Object.values(attendance).filter(Boolean).length;
   const absentCount = studentData.length - presentCount;
   const percentage = studentData.length > 0 ? ((presentCount / studentData.length) * 100).toFixed(1) : '0';
@@ -155,6 +256,7 @@ const AttendanceTable = () => {
           { label: t("present", language), value: presentCount, color: "#10B981" },
           { label: t("absent", language), value: absentCount, color: "#EF4444" },
           { label: t("rate", language), value: `${percentage}%`, color: primaryColor },
+          ...(blockedInClass > 0 ? [{ label: t("blocked", language), value: blockedInClass, color: "#DC2626" }] : []),
         ].map((s, i) => (
           <View key={i} className="flex-1 bg-surface rounded-2xl p-3 items-center border border-slate-50"
                 style={{ shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 }}>
@@ -163,6 +265,21 @@ const AttendanceTable = () => {
           </View>
         ))}
       </Animated.View>
+
+      {/* Blocked Banner */}
+      {blockedInClass > 0 && (
+        <Animated.View entering={FadeInUp.delay(150).duration(400)} className="px-5 mt-3">
+          <View
+            className="flex-row items-center rounded-xl px-3 py-2"
+            style={{ backgroundColor: isDark ? '#2D1215' : '#FEF2F2' }}
+          >
+            <MaterialCommunityIcons name="alert-circle" size={16} color="#DC2626" />
+            <Text className="text-xs font-medium ml-2 flex-1" style={{ color: '#DC2626' }}>
+              {blockedInClass} {t("cannotMarkAttendance", language)}
+            </Text>
+          </View>
+        </Animated.View>
+      )}
 
       {/* Table */}
       <Animated.View entering={FadeInUp.delay(200).duration(600).springify()} className="flex-1 px-5 mt-5">
@@ -179,16 +296,24 @@ const AttendanceTable = () => {
           {studentData.length > 0 ? (
             <FlatList
               data={studentData}
-              renderItem={({ item, index }) => (
-                <TableRow 
-                  item={item} 
-                  index={index} 
-                  isPresent={attendance[item[0]]}
-                  onToggle={handleToggle}
-                  primaryColor={primaryColor}
-                  isDark={isDark}
-                />
-              )}
+              renderItem={({ item, index }) => {
+                const rollNo = item[0];
+                const blacklistEntry = isEligibleForBlacklist && blacklistData[rollNo] && blacklistData[rollNo].className === className
+                  ? blacklistData[rollNo]
+                  : null;
+                return (
+                  <TableRow 
+                    item={item} 
+                    index={index} 
+                    isPresent={attendance[item[0]]}
+                    onToggle={handleToggle}
+                    primaryColor={primaryColor}
+                    isDark={isDark}
+                    blacklistEntry={blacklistEntry}
+                    language={language}
+                  />
+                );
+              }}
               keyExtractor={(item) => item[0]}
               initialNumToRender={20}
               maxToRenderPerBatch={20}
