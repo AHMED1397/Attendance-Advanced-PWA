@@ -4,21 +4,22 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { router, useLocalSearchParams } from 'expo-router';
 import Checkbox from 'expo-checkbox';
-import { getData, storeData, updateinFB } from '../services/asyncStorage';
+import { getData, storeData, syncPrayerData } from '../services/asyncStorage';
 import { useSettings } from '../services/SettingsContext';
 import { t } from '../services/translations';
 import { Picker } from '@react-native-picker/picker';
 import DatePickerCross from '../components/DatePickerCross';
 
-const EditTable = () => {
+const PRAYERS = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'thahajjud', 'luha'];
+
+const EditPrayerTable = () => {
   const params = useLocalSearchParams();
-  const { Date: originalDate, Teacher, Class, Subject: originalSubject } = params;
+  const { Date: originalDate, Teacher, Class, Prayer: originalPrayer } = params;
   const [initialData, setInitialData] = useState({});
   const [Attendance, setAttendance] = useState(params.Attendance ? JSON.parse(params.Attendance) : {});
-  const [subjects, setSubjects] = useState([]);
-  const [editableSubject, setEditableSubject] = useState(originalSubject);
+  const [editablePrayer, setEditablePrayer] = useState(originalPrayer);
   const [editableDate, setEditableDate] = useState(new Date(originalDate));
-  const [showSubjectPicker, setShowSubjectPicker] = useState(false);
+  const [showPrayerPicker, setShowPrayerPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const { primaryColor, theme, language } = useSettings();
   const isDark = theme === 'dark';
@@ -26,7 +27,6 @@ const EditTable = () => {
   useEffect(() => {
     getData('initialData').then((res) => {
       setInitialData(res);
-      if (res?.subjects) setSubjects(res.subjects);
     });
   }, []);
 
@@ -68,40 +68,30 @@ const EditTable = () => {
 
   const saveChanges = async () => {
     const newDateStr = editableDate.toDateString();
-    const hasChanged = newDateStr !== originalDate || editableSubject !== originalSubject;
     
-    if (hasChanged) {
-      const allData = await getData('attendanceDetails');
-      if (allData !== null) {
-        const filteredData = allData.filter(item => 
-          !(item.Date === originalDate && item.Subject === originalSubject && item.Class === Class)
-        );
-        const newRecord = { Attendance, Teacher: Attendance.Teacher || Teacher, Date: newDateStr, Subject: editableSubject, Class, synced: false };
-        const updatedData = [...filteredData, newRecord];
-        await storeData(updatedData, "attendanceDetails");
-        const teacherName = JSON.parse(Teacher).name;
-        updateinFB(teacherName, updatedData.length - 1, newRecord);
-        alert(t('changesSaved', language));
-        router.navigate("/(tabs)");
-      }
-    } else {
-      const updatedAttendance = { Attendance, Teacher, Date: originalDate, Subject: editableSubject, Class };
-      getData('attendanceDetails').then((res) => {
-        var id = null;
-        if (res !== null) {
-          const updatedData = res.map((item, index) => {
-            if (item.Date === originalDate && item.Subject === originalSubject && item.Class === Class) {
-              id = index;
-              return updatedAttendance;
-            }
-            return item;
-          });
-          storeData(updatedData, "attendanceDetails", id, updatedAttendance);
-          updateinFB(JSON.parse(updatedAttendance.Teacher).name, id, updatedAttendance);
-          alert(t('changesSaved', language));
-          router.navigate("/(tabs)");
-        }
-      });
+    const allData = await getData('prayerDetails');
+    if (allData !== null) {
+      // Remove the old record
+      const filteredData = allData.filter(item => 
+        !(item.Date === originalDate && item.Prayer === originalPrayer && item.Class === Class)
+      );
+      
+      // Add the updated record
+      const updatedRecord = { 
+        Attendance, 
+        Teacher: Teacher, 
+        Date: newDateStr, 
+        Prayer: editablePrayer, 
+        Class, 
+        synced: false 
+      };
+      
+      const updatedData = [...filteredData, updatedRecord];
+      await storeData(updatedData, "prayerDetails");
+      await syncPrayerData(); // Syncs everything and marks synced=true if connected
+
+      alert(t('changesSaved', language) || "Changes saved successfully!");
+      router.back();
     }
   };
 
@@ -122,9 +112,9 @@ const EditTable = () => {
         </TouchableOpacity>
         <Text className="text-white text-2xl font-bold">{t('edit', language)}: {Class}</Text>
         <View className="flex-row items-center mt-1">
-          <Ionicons name="book-outline" size={14} color="rgba(255,255,255,0.7)" />
-          <TouchableOpacity onPress={() => setShowSubjectPicker(true)} className="flex-row items-center ml-1">
-            <Text className="text-white/90 text-sm font-medium">{editableSubject}</Text>
+          <Ionicons name="moon-outline" size={14} color="rgba(255,255,255,0.7)" />
+          <TouchableOpacity onPress={() => setShowPrayerPicker(true)} className="flex-row items-center ml-1">
+            <Text className="text-white/90 text-sm font-medium uppercase">{t(editablePrayer, language) || editablePrayer}</Text>
             <Ionicons name="pencil" size={12} color="rgba(255,255,255,0.6)" className="ml-1" />
           </TouchableOpacity>
           <View className="w-1 h-1 bg-white/40 rounded-full mx-3" />
@@ -143,7 +133,7 @@ const EditTable = () => {
           { label: t("absent", language), value: totalCount - presentCount, color: "#EF4444" },
           { label: t("total", language), value: totalCount, color: primaryColor },
         ].map((s, i) => (
-          <View key={i} className="flex-1 bg-surface rounded-2xl p-3 items-center border border-slate-50"
+          <View key={i} className="flex-1 bg-surface rounded-2xl p-3 items-center border border-slate-50 dark:border-slate-800"
                 style={{ shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 }}>
             <Text className="text-lg font-bold" style={{ color: s.color }}>{s.value}</Text>
             <Text className="text-text-sub text-[10px] uppercase font-medium tracking-wider">{s.label}</Text>
@@ -153,7 +143,7 @@ const EditTable = () => {
 
       {/* Table */}
       <Animated.View entering={FadeInUp.delay(200).duration(600).springify()} className="flex-1 px-5 mt-5">
-        <View className="bg-surface rounded-2xl overflow-hidden border border-slate-50 flex-1"
+        <View className="bg-surface rounded-2xl overflow-hidden border border-slate-50 dark:border-slate-800 flex-1"
               style={{ shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 12, elevation: 3 }}>
           <View className="flex-row px-4 py-3" style={{ backgroundColor: `${primaryColor}15` }}>
             <Text style={{ color: primaryColor }} className="text-[10px] font-bold w-[10%] text-center uppercase">{t('no', language)}</Text>
@@ -190,23 +180,23 @@ const EditTable = () => {
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Subject Picker Modal */}
-      <Modal visible={showSubjectPicker} transparent animationType="slide">
+      {/* Prayer Picker Modal */}
+      <Modal visible={showPrayerPicker} transparent animationType="slide">
         <View className="flex-1 justify-end bg-black/50">
           <View className="bg-surface rounded-t-3xl p-4">
             <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-text-main font-bold text-lg">{t('selectSubject', language)}</Text>
-              <TouchableOpacity onPress={() => setShowSubjectPicker(false)}>
+              <Text className="text-text-main font-bold text-lg">{language === 'ar' ? 'اختر الصلاة' : 'Select Prayer'}</Text>
+              <TouchableOpacity onPress={() => setShowPrayerPicker(false)}>
                 <Ionicons name="close" size={24} color={primaryColor} />
               </TouchableOpacity>
             </View>
             <Picker
-              selectedValue={editableSubject}
-              onValueChange={(value) => setEditableSubject(value)}
-              style={{ height: 200 }}
+              selectedValue={editablePrayer}
+              onValueChange={(value) => setEditablePrayer(value)}
+              style={{ height: 200, color: isDark ? '#fff' : '#000' }}
             >
-              {subjects.map((sub, index) => (
-                <Picker.Item key={index} label={sub} value={sub} />
+              {PRAYERS.map((prayer) => (
+                <Picker.Item key={prayer} label={t(prayer, language)} value={prayer} />
               ))}
             </Picker>
           </View>
@@ -246,4 +236,4 @@ const EditTable = () => {
   );
 };
 
-export default EditTable;
+export default EditPrayerTable;

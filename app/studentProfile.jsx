@@ -46,6 +46,7 @@ const StudentProfile = () => {
   const [selectedStudent, setSelectedStudent] = useState('');
   const [studentsInClass, setStudentsInClass] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+  const [prayerDetails, setPrayerDetails] = useState([]);
   const [blacklistHistory, setBlacklistHistory] = useState([]);
   const { language } = useSettings();
 
@@ -76,6 +77,25 @@ const StudentProfile = () => {
           // Offline fallback: use local data
           const att = await getData('attendanceDetails');
           if (att && Array.isArray(att)) setAttendanceDetails(att);
+        }
+
+        // Fetch ALL prayer data
+        if (netState.isConnected) {
+          const fbPrayers = await readUserData('prayerDetails');
+          if (fbPrayers) {
+            const allPrayers = [];
+            Object.values(fbPrayers).forEach(teacherPrayers => {
+              if (Array.isArray(teacherPrayers)) {
+                allPrayers.push(...teacherPrayers);
+              } else if (teacherPrayers) {
+                allPrayers.push(...Object.values(teacherPrayers));
+              }
+            });
+            setPrayerDetails(allPrayers);
+          }
+        } else {
+          const pr = await getData('prayerDetails');
+          if (pr && Array.isArray(pr)) setPrayerDetails(pr);
         }
       } catch (error) {
         console.error('Error loading analytics data:', error);
@@ -193,8 +213,35 @@ const StudentProfile = () => {
     const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const latestMonthLabel = latestMonth ? `${monthNames[parseInt(latestMonth.split('-')[1]) - 1]} ${latestMonth.split('-')[0]}` : '';
 
-    return { totalPeriods, totalPresent, totalAbsent: totalPeriods - totalPresent, overallPct, subjectBreakdown, monthlyTrend, calendarData, latestMonthLabel };
-  }, [selectedStudent, selectedClass, attendanceDetails]);
+    // Prayer Analytics
+    const pRecords = prayerDetails.filter(r => r.Class === selectedClass);
+    const prayerSummary = {
+      fajr: { present: 0, total: 0 },
+      dhuhr: { present: 0, total: 0 },
+      asr: { present: 0, total: 0 },
+      maghrib: { present: 0, total: 0 },
+      isha: { present: 0, total: 0 },
+    };
+    
+    pRecords.forEach(record => {
+      if (record.Attendance?.[selectedStudent] === undefined) return;
+      const isPresent = record.Attendance[selectedStudent] === true;
+      const pKey = record.Prayer;
+      if (prayerSummary[pKey]) {
+        prayerSummary[pKey].total++;
+        if (isPresent) prayerSummary[pKey].present++;
+      }
+    });
+
+    const prayerStats = Object.entries(prayerSummary).map(([key, data]) => ({
+      key,
+      percentage: data.total > 0 ? ((data.present / data.total) * 100).toFixed(1) : '0.0',
+      present: data.present,
+      total: data.total
+    })).filter(s => s.total > 0);
+
+    return { totalPeriods, totalPresent, totalAbsent: totalPeriods - totalPresent, overallPct, subjectBreakdown, monthlyTrend, calendarData, latestMonthLabel, prayerStats };
+  }, [selectedStudent, selectedClass, attendanceDetails, prayerDetails]);
 
   const studentName = studentsInClass[selectedStudent] || '';
 
@@ -422,6 +469,30 @@ const StudentProfile = () => {
                       <View key={item.s} className="flex-row items-center">
                         <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: item.c, marginRight: 4 }} />
                         <Text className="text-text-sub text-[10px]">{item.l}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </Animated.View>
+            )}
+
+            {/* Prayer Records Section */}
+            {analytics.prayerStats.length > 0 && (
+              <Animated.View entering={FadeInUp.delay(550).duration(600).springify()} className="px-5 mt-4">
+                <View className="bg-surface rounded-2xl p-5 border border-slate-50" style={{ shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 12, elevation: 3 }}>
+                  <Text className="text-text-sub text-xs font-semibold uppercase tracking-wider mb-4">{t('prayerRecords', language)}</Text>
+                  
+                  <View className="flex-row flex-wrap gap-2">
+                    {analytics.prayerStats.map((p) => (
+                      <View key={p.key} className="bg-slate-50 rounded-xl p-3 flex-1 min-w-[45%]">
+                        <View className="flex-row items-center mb-2">
+                          <View className="w-6 h-6 rounded-lg items-center justify-center mr-2" style={{ backgroundColor: `${primaryColor}20` }}>
+                            <Ionicons name="sunny-outline" size={12} color={primaryColor} />
+                          </View>
+                          <Text className="text-text-main font-bold text-xs capitalize">{t(p.key, language)}</Text>
+                        </View>
+                        <Text className="text-lg font-bold" style={{ color: pctColor(p.percentage) }}>{p.percentage}%</Text>
+                        <Text className="text-[10px] text-text-sub">{p.present}/{p.total} {t('records', language) || 'records'}</Text>
                       </View>
                     ))}
                   </View>

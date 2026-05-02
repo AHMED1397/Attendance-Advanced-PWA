@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Dimensions, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, Dimensions, FlatList, ActivityIndicator, TouchableOpacity, Modal } from 'react-native';
 import React, { useEffect, useRef, useState, useCallback, memo } from 'react';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -99,6 +99,9 @@ const AttendanceTable = () => {
   // Qadr progress tracking
   const [showQadrModal, setShowQadrModal] = useState(false);
   const [qadrConfig, setQadrConfig] = useState(null);
+  
+  // Success modal
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -127,9 +130,11 @@ const AttendanceTable = () => {
     };
     fetchData();
 
-    // Fetch qadr config from Firebase (async)
+    // Fetch qadr config from Firebase with teacher ID for per-teacher progress
     const loadQadrConfig = async () => {
-      const matchedConfig = await fetchQadrConfig(className, subject);
+      const userObj = await getData('userName');
+      const teacherId = userObj?.no || null;
+      const matchedConfig = await fetchQadrConfig(className, subject, teacherId);
       if (matchedConfig) {
         setQadrConfig(matchedConfig);
       }
@@ -195,15 +200,13 @@ const AttendanceTable = () => {
       setShowQadrModal(true);
     } else {
       // Normal flow
-      alert(t('dataSubmitted', language));
-      router.push('/(tabs)');
+      setShowSuccessModal(true);
     }
   };
 
   const handleQadrModalClose = (saved) => {
     setShowQadrModal(false);
-    alert(t('dataSubmitted', language));
-    router.push('/(tabs)');
+    setShowSuccessModal(true);
   };
 
   if (isLoading) {
@@ -347,12 +350,49 @@ const AttendanceTable = () => {
           visible={showQadrModal}
           onClose={handleQadrModalClose}
           config={qadrConfig}
-          className={className}
           primaryColor={primaryColor}
           isDark={isDark}
-          date={date}
         />
       )}
+
+      {/* Success Modal */}
+      <Modal
+        visible={showSuccessModal}
+        transparent={true}
+        animationType="fade"
+      >
+        <View className="flex-1 bg-black/60 justify-center items-center px-5">
+          <Animated.View 
+            entering={FadeInUp.duration(400).springify()}
+            className="w-full rounded-3xl p-6 items-center"
+            style={{ backgroundColor: isDark ? '#1E293B' : '#FFFFFF', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, elevation: 10 }}
+          >
+            <View className="w-20 h-20 rounded-full items-center justify-center mb-5" style={{ backgroundColor: `${primaryColor}15` }}>
+              <Ionicons name="checkmark-circle" size={50} color={primaryColor} />
+            </View>
+            <Text className="text-2xl font-bold mb-3 text-center" style={{ color: isDark ? '#F8FAFC' : '#1E293B' }}>
+              {t('dataSubmitted', language)}
+            </Text>
+            <View className="flex-row items-center bg-amber-50 rounded-xl p-3 mb-6" style={{ backgroundColor: isDark ? '#451A03' : '#FEF3C7' }}>
+              <Ionicons name="bulb-outline" size={20} color={isDark ? '#FCD34D' : '#D97706'} />
+              <Text className="text-sm text-center flex-1 ml-2" style={{ color: isDark ? '#FEF3C7' : '#B45309', fontWeight: '500' }}>
+                {t('assignmentReminder', language)}
+              </Text>
+            </View>
+            <TouchableOpacity 
+              onPress={() => {
+                setShowSuccessModal(false);
+                router.push('/(tabs)');
+              }}
+              className="w-full py-4 rounded-2xl items-center"
+              style={{ backgroundColor: primaryColor }}
+              activeOpacity={0.8}
+            >
+              <Text className="text-white font-bold text-lg">{t('continue', language) || "Continue"}</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
     </View>
   );
 };

@@ -3,7 +3,7 @@ import database from "./firebase_initialize.jsx";
 
 async function writeUserData(path, data) {
   const db = database;
-  set(ref(db, path), data);
+  await set(ref(db, path), data);
 }
 
 async function updateUserData(userName, id, updatedAttendance) {
@@ -33,4 +33,24 @@ async function deleteUserData(path) {
   await remove(dbref);
 }
 
-export { writeUserData, readUserData, updateUserData, deleteUserData };
+async function updateQadrPlans(className, subject, data) {
+  const db = database;
+  const dbref = ref(db, `qadrPlans/${className}/${subject}`);
+  await update(dbref, data);
+}
+
+async function addUsulFiqhForGr5() {
+  const db = database;
+  const dbref = ref(db, `qadrPlans/الصف الخامس/أصول الفقه`);
+  await update(dbref, {
+    book: "الوجيز في أصول الفقه",
+    end: 85,
+    id: "gr5_usul",
+    midYearEnd: 45,
+    start: 13,
+    unitLabel: "صفحة",
+    unitLabelEn: "Page"
+  });
+}
+
+export { writeUserData, readUserData, updateUserData, deleteUserData, updateQadrPlans, addUsulFiqhForGr5 };

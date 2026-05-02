@@ -20,7 +20,9 @@ import { readUserData } from "../../services/firebase_crud";
 import { useSettings } from "../../services/SettingsContext";
 import { t } from "../../services/translations";
 import { Picker } from "@react-native-picker/picker";
-import RNDateTimePicker from "@react-native-community/datetimepicker";
+import { seedQadrPlans } from "../../services/seedQadrPlans";
+import { fetchQadrConfig, calculateProgress, fetchAllQadrPlans } from "../../services/qadrConfig";
+import DatePickerCross from "../../components/DatePickerCross";
 
 const Index = () => {
   const [date, setDate] = useState(new Date());
@@ -40,8 +42,53 @@ const Index = () => {
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
 
   // What's New modal
-  const CURRENT_VERSION = '1.2.0';
+  const CURRENT_VERSION = '1.3.0';
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+
+  // Qadr Progress states
+  const [showQadrProgress, setShowQadrProgress] = useState(false);
+  const [qadrSelectedClass, setQadrSelectedClass] = useState('');
+  const [qadrSelectedSubject, setQadrSelectedSubject] = useState('');
+  const [qadrProgressData, setQadrProgressData] = useState(null);
+  const [qadrAvailableSubjects, setQadrAvailableSubjects] = useState([]);
+
+  useEffect(() => {
+    const loadSubjects = async () => {
+      if (!qadrSelectedClass) {
+        setQadrAvailableSubjects([]);
+        return;
+      }
+      const plans = await fetchAllQadrPlans();
+      if (!plans) {
+        setQadrAvailableSubjects([]);
+        return;
+      }
+      
+      let classPlans = plans[qadrSelectedClass];
+      if (!classPlans) {
+        const norm = (s) => s.replace(/\s+/g, '').replace(/-/g, '');
+        const normInput = norm(qadrSelectedClass);
+        for (const key of Object.keys(plans)) {
+          if (norm(key) === normInput) {
+            classPlans = plans[key];
+            break;
+          }
+        }
+      }
+      
+      if (classPlans) {
+        setQadrAvailableSubjects(Object.keys(classPlans));
+      } else {
+        setQadrAvailableSubjects([]);
+      }
+    };
+    if (showQadrProgress) {
+        loadSubjects();
+    }
+  }, [qadrSelectedClass, showQadrProgress]);
+
+  // Delete confirmation
+  const [deleteItem, setDeleteItem] = useState(null);
 
   useEffect(() => {
     const checkWhatsNew = async () => {
@@ -188,24 +235,29 @@ const Index = () => {
   };
 
   const deleteRecord = (itemToDelete) => {
-    Alert.alert(t("deleteRecord", language), t("deleteConfirm", language), [
-      { text: t("cancel", language), style: "cancel" },
-      {
-        text: t("delete", language),
-        style: "destructive",
-        onPress: async () => {
-          try {
-            const updatedDetails = attendanceDetails.filter((item) => item !== itemToDelete);
-            setAttendanceDetails(updatedDetails);
-            await storeData(updatedDetails, "attendanceDetails");
-            await syncData();
-          } catch (error) {
-            console.error("Error deleting record:", error);
-            Alert.alert(t("error", language), t("errorDeleting", language));
-          }
-        },
-      },
-    ]);
+    console.log("deleteRecord called with:", itemToDelete);
+    setDeleteItem(itemToDelete);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteItem) return;
+    console.log("Delete confirmed for:", deleteItem);
+    try {
+      const updatedDetails = attendanceDetails.filter((item) => item !== deleteItem);
+      setAttendanceDetails(updatedDetails);
+      await storeData(updatedDetails, "attendanceDetails");
+      await syncData();
+      console.log("Delete successful");
+    } catch (error) {
+      console.error("Error deleting record:", error);
+      Alert.alert(t("error", language) || "Error", t("errorDeleting", language) || "Error deleting record");
+    }
+    setDeleteItem(null);
+  };
+
+  const cancelDelete = () => {
+    console.log("Delete cancelled");
+    setDeleteItem(null);
   };
 
   const getGreeting = () => {
@@ -224,6 +276,19 @@ const Index = () => {
 
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [dailyQuote, setDailyQuote] = useState(null);
+
+  useEffect(() => {
+    const quotes = [
+      { text: "خيركم من تعلم القرآن وعلمه", source: "رواه البخاري" },
+      { text: "إن الله وملائكته وأهل السماوات والأرضين ليصلون على معلم الناس الخير", source: "رواه الترمذي" },
+      { text: "فضل العالم على العابد كفضلي على أدناكم", source: "رواه الترمذي" },
+      { text: "من سلك طريقا يلتمس فيه علما سهل الله له به طريقا إلى الجنة", source: "رواه مسلم" },
+      { text: "إذا مات ابن آدم انقطع عمله إلا من ثلاث: صدقة جارية، أو علم ينتفع به، أو ولد صالح يدعو له", source: "رواه مسلم" },
+      { text: "إنما بعثت معلماً", source: "رواه ابن ماجه" }
+    ];
+    setDailyQuote(quotes[Math.floor(Math.random() * quotes.length)]);
+  }, []);
 
   useEffect(() => {
     updatePendingCount();
@@ -297,8 +362,37 @@ const Index = () => {
           </View>
         </Animated.View>
 
+        {/* Faleelathu Thaleem Quote */}
+        {dailyQuote && (
+          <Animated.View entering={FadeInUp.delay(50).duration(600).springify()} className="px-5 mt-4">
+            <View 
+              className="rounded-2xl p-4 flex-row items-center border"
+              style={{ 
+                backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
+                borderColor: isDark ? '#334155' : '#E2E8F0',
+                shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 
+              }}
+            >
+              <View className="flex-1 mr-3 items-center">
+                <Text className="text-text-main font-bold text-[14px] text-center leading-5" style={{ writingDirection: 'rtl' }}>
+                  {dailyQuote.text}
+                </Text>
+                <Text className="text-text-sub text-[10px] mt-1.5 font-medium text-center" style={{ writingDirection: 'rtl' }}>
+                  {dailyQuote.source}
+                </Text>
+              </View>
+              <View 
+                className="w-10 h-10 rounded-xl items-center justify-center"
+                style={{ backgroundColor: `${primaryColor}15` }}
+              >
+                <MaterialCommunityIcons name="book-open-page-variant" size={20} color={primaryColor} />
+              </View>
+            </View>
+          </Animated.View>
+        )}
+
         {/* Sync Status Pill */}
-        <Animated.View entering={FadeIn.delay(100).duration(400)} className="px-5 mt-3">
+        <Animated.View entering={FadeIn.delay(100).duration(400)} className="px-5 mt-4">
           <TouchableOpacity 
             onPress={pendingCount > 0 ? performSync : undefined}
             activeOpacity={pendingCount > 0 ? 0.7 : 1}
@@ -444,6 +538,27 @@ const Index = () => {
           </View>
         </Animated.View>
 
+        {/* Qadr Progress Button */}
+        <Animated.View entering={FadeInUp.delay(350).duration(600).springify()} className="px-5 mt-4">
+          <TouchableOpacity 
+            onPress={() => {
+              if (initialData?.classes) {
+                setQadrSelectedClass('');
+                setQadrSelectedSubject('');
+                setQadrProgressData(null);
+                setShowQadrProgress(true);
+              } else {
+                Alert.alert(t("error", language), t("noDataAvailable", language) || "No data available");
+              }
+            }}
+            className="flex-row items-center justify-center py-3 rounded-xl"
+            style={{ backgroundColor: `${primaryColor}15` }}
+          >
+            <MaterialCommunityIcons name="book-open-page-variant" size={18} color={primaryColor} style={{ marginRight: 8 }} />
+            <Text style={{ color: primaryColor }} className="text-sm font-semibold">{t("qadrProgress", language) || "مقرر"}</Text>
+          </TouchableOpacity>
+        </Animated.View>
+
         {/* Recent Records */}
         <Animated.View 
           entering={FadeInUp.delay(400).duration(600).springify()}
@@ -508,8 +623,10 @@ const Index = () => {
 
                   <TouchableOpacity 
                     onPress={() => deleteRecord(item)}
+                    onPressIn={() => console.log("Delete pressed!")}
                     className="w-9 h-9 rounded-xl items-center justify-center ml-2"
                     style={{ backgroundColor: '#FEF2F2' }}
+                    activeOpacity={0.7}
                   >
                     <Ionicons name="trash-outline" size={16} color="#EF4444" />
                   </TouchableOpacity>
@@ -648,10 +765,11 @@ const Index = () => {
 
       {/* Start Date Picker */}
       {showStartDatePicker && (
-        <RNDateTimePicker
+        <DatePickerCross
           value={filterStartDate || new Date()}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          isDark={isDark}
           onChange={(event, date) => {
             setShowStartDatePicker(Platform.OS === 'ios');
             if (date) setFilterStartDate(date);
@@ -661,10 +779,11 @@ const Index = () => {
 
       {/* End Date Picker */}
       {showEndDatePicker && (
-        <RNDateTimePicker
+        <DatePickerCross
           value={filterEndDate || new Date()}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          isDark={isDark}
           onChange={(event, date) => {
             setShowEndDatePicker(Platform.OS === 'ios');
             if (date) setFilterEndDate(date);
@@ -712,7 +831,12 @@ const Index = () => {
               ].map((feature, idx) => (
                 <View key={idx} style={{ flexDirection: 'row', marginBottom: idx < 2 ? 16 : 0 }}>
                   <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: `${primaryColor}12`, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                    <Text style={{ fontSize: 16 }}>{feature.title.includes('🕌') ? '🕌' : feature.title.includes('📊') ? '📊' : '☁️'}</Text>
+                    <Text style={{ fontSize: 16 }}>
+                      {feature.title.includes('🕌') ? '🕌' : 
+                       feature.title.includes('📊') ? '📊' : 
+                       feature.title.includes('📅') ? '📅' : 
+                       feature.title.includes('⚡') ? '⚡' : '✨'}
+                    </Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: isDark ? '#F8FAFC' : '#0F172A', fontWeight: '700', fontSize: 14, marginBottom: 2 }}>{feature.title}</Text>
@@ -733,6 +857,244 @@ const Index = () => {
               </TouchableOpacity>
             </View>
           </Animated.View>
+        </View>
+      </Modal>
+
+      {/* Qadr Progress Modal */}
+      <Modal
+        visible={showQadrProgress}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowQadrProgress(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <Animated.View 
+            entering={FadeInUp.duration(300)}
+            style={{
+              backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              maxHeight: '85%',
+              paddingBottom: 34,
+            }}
+          >
+            {/* Header */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: isDark ? '#334155' : '#E2E8F0' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: `${primaryColor}15`, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                  <MaterialCommunityIcons name="book-open-page-variant" size={22} color={primaryColor} />
+                </View>
+                <Text style={{ color: isDark ? '#F8FAFC' : '#1E293B', fontSize: 18, fontWeight: 'bold' }}>{t("qadrProgress", language)}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowQadrProgress(false)} style={{ padding: 8 }}>
+                <Ionicons name="close" size={24} color={isDark ? '#94A3B8' : '#64748B'} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ padding: 20 }} contentContainerStyle={{ paddingBottom: 20 }}>
+              {/* Class Picker */}
+              <Text style={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: 12, fontWeight: '600', marginBottom: 8 }}>{t("selectClass", language)}</Text>
+              <View style={{ borderWidth: 1, borderColor: isDark ? '#334155' : '#E2E8F0', borderRadius: 12, marginBottom: 16, backgroundColor: isDark ? '#0F172A' : '#F8FAFC' }}>
+                <Picker
+                  selectedValue={qadrSelectedClass}
+                  onValueChange={(val) => {
+                    setQadrSelectedClass(val);
+                    setQadrSelectedSubject('');
+                    setQadrProgressData(null);
+                  }}
+                  style={{ color: isDark ? '#F8FAFC' : '#1E293B' }}
+                  dropdownIconColor={isDark ? '#94A3B8' : '#64748B'}
+                >
+                  <Picker.Item label={t("selectClass", language)} value="" />
+                  {initialData?.classes?.map((cls, idx) => (
+                    <Picker.Item key={idx} label={cls} value={cls} />
+                  ))}
+                </Picker>
+              </View>
+
+              {/* Subject Picker */}
+              <Text style={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: 12, fontWeight: '600', marginBottom: 8 }}>{t("selectSubject", language)}</Text>
+              <View style={{ borderWidth: 1, borderColor: isDark ? '#334155' : '#E2E8F0', borderRadius: 12, marginBottom: 20, backgroundColor: isDark ? '#0F172A' : '#F8FAFC' }}>
+                <Picker
+                  selectedValue={qadrSelectedSubject}
+                  onValueChange={(val) => {
+                    setQadrSelectedSubject(val);
+                    setQadrProgressData(null);
+                  }}
+                  style={{ color: isDark ? '#F8FAFC' : '#1E293B' }}
+                  dropdownIconColor={isDark ? '#94A3B8' : '#64748B'}
+                >
+                  <Picker.Item label={t("selectSubject", language)} value="" />
+                  {qadrAvailableSubjects.map((subj, idx) => (
+                    <Picker.Item key={idx} label={subj} value={subj} />
+                  ))}
+                </Picker>
+              </View>
+
+              {/* Show Progress Button */}
+              <TouchableOpacity
+                onPress={async () => {
+                  if (!qadrSelectedClass || !qadrSelectedSubject) {
+                    Alert.alert(t("error", language), t("classRequired", language));
+                    return;
+                  }
+                  try {
+                    const userNameData = await getData("userName");
+                    const teacherId = userNameData?.no || userNameData?.name;
+                    const config = await fetchQadrConfig(qadrSelectedClass, qadrSelectedSubject, teacherId);
+                    if (config && (config.start !== undefined || config.surahDetails)) {
+                      const progress = calculateProgress(config);
+                      setQadrProgressData({ config, progress });
+                    } else {
+                      Alert.alert(t("error", language), t("noQadrConfig", language) || "No qadr configuration found for this subject");
+                      setQadrProgressData(null);
+                    }
+                  } catch (err) {
+                    console.error("Error fetching qadr progress:", err);
+                    Alert.alert(t("error", language), t("errorLoadingData", language));
+                  }
+                }}
+                disabled={!qadrSelectedClass || !qadrSelectedSubject}
+                style={{ 
+                  backgroundColor: qadrSelectedClass && qadrSelectedSubject ? primaryColor : '#94A3B8', 
+                  borderRadius: 12, 
+                  padding: 16, 
+                  alignItems: 'center',
+                  marginBottom: 20,
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>{t("showProgress", language) || "Show Progress"}</Text>
+              </TouchableOpacity>
+
+              {/* Progress Display */}
+              {qadrProgressData && (
+                <View style={{ backgroundColor: isDark ? '#0F172A' : '#F8FAFC', borderRadius: 16, padding: 16 }}>
+                  {/* Book/Unit Info */}
+                  <View style={{ marginBottom: 16 }}>
+                    <Text style={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: 12 }}>{qadrProgressData.config.unitLabel || 'وحدة'}</Text>
+                    <Text style={{ color: isDark ? '#F8FAFC' : '#1E293B', fontSize: 14, fontWeight: '600' }}>{qadrProgressData.config.book || '-'}</Text>
+                  </View>
+
+                  {/* Full Year Progress */}
+                  <View style={{ marginBottom: 16 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text style={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: 12 }}>{language === 'ar' ? 'السنة الكاملة' : 'Full Year'}</Text>
+                      <Text style={{ color: primaryColor, fontWeight: 'bold', fontSize: 14 }}>
+                        {qadrProgressData.progress.wholeYearPercentage ? qadrProgressData.progress.wholeYearPercentage.toFixed(0) : 0}%
+                      </Text>
+                    </View>
+                    <View style={{ height: 12, backgroundColor: isDark ? '#334155' : '#E2E8F0', borderRadius: 6, overflow: 'hidden' }}>
+                      <View style={{ 
+                        height: '100%', 
+                        width: `${Math.min(100, Math.max(0, qadrProgressData.progress.wholeYearPercentage || 0))}%`, 
+                        backgroundColor: primaryColor,
+                        borderRadius: 6,
+                      }} />
+                    </View>
+                  </View>
+
+                  {/* Mid Year Progress */}
+                  <View style={{ marginBottom: 16 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text style={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: 12 }}>{language === 'ar' ? 'النصف الأول' : 'Mid Year'}</Text>
+                      <Text style={{ color: '#F59E0B', fontWeight: 'bold', fontSize: 14 }}>
+                        {qadrProgressData.progress.examPercentage ? qadrProgressData.progress.examPercentage.toFixed(0) : 0}%
+                      </Text>
+                    </View>
+                    <View style={{ height: 8, backgroundColor: isDark ? '#334155' : '#E2E8F0', borderRadius: 4, overflow: 'hidden' }}>
+                      <View style={{ 
+                        height: '100%', 
+                        width: `${Math.min(100, Math.max(0, qadrProgressData.progress.examPercentage || 0))}%`, 
+                        backgroundColor: '#F59E0B',
+                        borderRadius: 4,
+                      }} />
+                    </View>
+                  </View>
+
+                  {/* Current Status */}
+                  <View style={{ borderTopWidth: 1, borderTopColor: isDark ? '#334155' : '#E2E8F0', paddingTop: 12 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <View>
+                        <Text style={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: 11 }}>{language === 'ar' ? 'الحالي' : 'Current'}</Text>
+                        <Text style={{ color: isDark ? '#F8FAFC' : '#1E293B', fontSize: 16, fontWeight: 'bold' }}>
+                          {qadrProgressData.progress.currentValue ?? 0}
+                          {' / '}
+                          {qadrProgressData.progress.rangeEnd ?? qadrProgressData.config.end ?? 0}
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: 11 }}>{language === 'ar' ? 'المتبقي' : 'Remaining'}</Text>
+                        <Text style={{ color: isDark ? '#F8FAFC' : '#1E293B', fontSize: 16, fontWeight: 'bold' }}>
+                          {qadrProgressData.progress.remaining ?? 0}
+                        </Text>
+                      </View>
+                    </View>
+</View>
+                </View>)}
+              </ScrollView>
+            </Animated.View>
+          </View>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={deleteItem !== null}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={cancelDelete}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ 
+            backgroundColor: isDark ? '#1E293B' : '#FFFFFF', 
+            borderRadius: 20, 
+            padding: 24, 
+            width: '100%', 
+            maxWidth: 340 
+          }}>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <View style={{ 
+                width: 60, height: 60, borderRadius: 30, 
+                backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center',
+                marginBottom: 16 
+              }}>
+                <Ionicons name="warning" size={30} color="#EF4444" />
+              </View>
+              <Text style={{ color: isDark ? '#F8FAFC' : '#1E293B', fontSize: 18, fontWeight: 'bold', textAlign: 'center' }}>
+                {t("deleteRecord", language) || "Delete Record"}
+              </Text>
+              <Text style={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: 14, textAlign: 'center', marginTop: 8 }}>
+                {t("deleteConfirm", language) || "Are you sure you want to delete this record?"}
+              </Text>
+            </View>
+            
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity 
+                onPress={cancelDelete}
+                style={{ 
+                  flex: 1, padding: 14, borderRadius: 12, 
+                  backgroundColor: isDark ? '#334155' : '#F1F5F9',
+                  alignItems: 'center' 
+                }}
+              >
+                <Text style={{ color: isDark ? '#F8FAFC' : '#1E293B', fontWeight: '600' }}>
+                  {t("cancel", language) || "Cancel"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={confirmDelete}
+                style={{ 
+                  flex: 1, padding: 14, borderRadius: 12, 
+                  backgroundColor: '#EF4444',
+                  alignItems: 'center' 
+                }}
+              >
+                <Text style={{ color: 'white', fontWeight: '600' }}>
+                  {t("delete", language) || "Delete"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
     </>

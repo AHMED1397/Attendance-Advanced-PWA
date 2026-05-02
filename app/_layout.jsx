@@ -4,8 +4,25 @@ import { Alert } from "react-native";
 import Constants, { AppOwnership } from 'expo-constants';
 import { SettingsProvider } from "../services/SettingsContext";
 import AppWrapper from "../components/AppWrapper";
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const [loaded, error] = useFonts({
+    ...Ionicons.font,
+    ...MaterialCommunityIcons.font,
+  });
+
+  useEffect(() => {
+    if (loaded || error) {
+      SplashScreen.hideAsync();
+    }
+  }, [loaded, error]);
+
   useEffect(() => {
     async function onFetchUpdateAsync() {
       try {
@@ -50,6 +67,10 @@ export default function RootLayout() {
     }
   }, []);
 
+  if (!loaded && !error) {
+    return null;
+  }
+
   return (
     <SettingsProvider>
       <AppWrapper>
@@ -68,6 +89,12 @@ export default function RootLayout() {
           <Stack.Screen name="studentProfile" options={{headerShown : false}} />
           <Stack.Screen name="summarySearch" options={{headerShown : false}} />
           <Stack.Screen name="aboutDev" options={{headerShown : false}} />
+          <Stack.Screen name="quickPrayer" options={{headerShown : false}} />
+          <Stack.Screen name="blacklistHistory" options={{headerShown : false}} />
+          <Stack.Screen name="prayerSetup" options={{headerShown : false}} />
+          <Stack.Screen name="prayerRecent" options={{headerShown : false}} />
+          <Stack.Screen name="studentPrayerOverview" options={{headerShown : false}} />
+          <Stack.Screen name="editPrayerTable" options={{headerShown : false}} />
         </Stack>
       </AppWrapper>
     </SettingsProvider>

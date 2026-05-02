@@ -3,8 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { getData } from '../services/asyncStorage';
-import RNDateTimePicker from '@react-native-community/datetimepicker';
+import { getData, syncPrayerFromFB } from '../services/asyncStorage';
+import DatePickerCross from '../components/DatePickerCross';
 import { useSettings } from '../services/SettingsContext';
 import { t } from '../services/translations';
 
@@ -49,14 +49,22 @@ const PrayerAnalytics = () => {
   const [initialData, setInitialData] = useState({});
 
   useEffect(() => {
-    const load = async () => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    // First try to sync from Firebase
+    const syncedData = await syncPrayerFromFB();
+    if (syncedData) {
+      setPrayerData(syncedData);
+    } else {
+      // Fall back to local storage
       const data = await getData('prayerDetails');
       if (data) setPrayerData(data);
-      const init = await getData('initialData');
-      if (init) setInitialData(init);
-    };
-    load();
-  }, []);
+    }
+    const init = await getData('initialData');
+    if (init) setInitialData(init);
+  };
 
   useEffect(() => {
     filterData();
@@ -65,8 +73,16 @@ const PrayerAnalytics = () => {
   const filterData = () => {
     const from = new Date(fromDate.toDateString());
     const to = new Date(toDate.toDateString());
+    
+    // Robust normalization to handle Arabic spacing/dash differences
+    const normalize = (s) => s?.replace(/\s+/g, '').replace(/-/g, '').replace(/[\u064B-\u065F]/g, '');
+
     const filtered = prayerData.filter((record) => {
-      if (initialClass && record.Class !== initialClass) return false;
+      if (initialClass) {
+        if (record.Class !== initialClass && normalize(record.Class) !== normalize(initialClass)) {
+          return false;
+        }
+      }
       const recordDate = new Date(record.Date);
       return recordDate >= from && recordDate <= to;
     });
@@ -143,7 +159,15 @@ const PrayerAnalytics = () => {
           <Ionicons name="arrow-back" size={20} color="white" />
           <Text className="text-white/70 text-sm ml-2">{t('back', language)}</Text>
         </TouchableOpacity>
-        <Text className="text-white text-2xl font-bold">{t('prayerAnalytics', language)}</Text>
+        <View className="flex-row items-center justify-between">
+          <Text className="text-white text-2xl font-bold">{t('prayerAnalytics', language)}</Text>
+          <TouchableOpacity 
+            onPress={loadData}
+            className="w-8 h-8 rounded-full bg-white/20 items-center justify-center"
+          >
+            <Ionicons name="sync" size={18} color="white" />
+          </TouchableOpacity>
+        </View>
         <View className="flex-row items-center mt-1">
           <Ionicons name="school-outline" size={14} color="rgba(255,255,255,0.7)" />
           <Text className="text-white/70 text-sm ml-2">{initialClass}</Text>
@@ -181,12 +205,12 @@ const PrayerAnalytics = () => {
             </TouchableOpacity>
           </View>
           {showFromPicker && (
-            <RNDateTimePicker mode="date" value={fromDate} display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              onChange={(e, d) => { if (d) setFromDate(d); setShowFromPicker(false); }} />
+            <DatePickerCross mode="date" value={fromDate} display={Platform.OS === 'ios' ? 'inline' : 'default'}
+              onChange={(e, d) => { if (d) setFromDate(d); setShowFromPicker(false); }} isDark={isDark} />
           )}
           {showToPicker && (
-            <RNDateTimePicker mode="date" value={toDate} display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              onChange={(e, d) => { if (d) setToDate(d); setShowToPicker(false); }} />
+            <DatePickerCross mode="date" value={toDate} display={Platform.OS === 'ios' ? 'inline' : 'default'}
+              onChange={(e, d) => { if (d) setToDate(d); setShowToPicker(false); }} isDark={isDark} />
           )}
         </Animated.View>
 

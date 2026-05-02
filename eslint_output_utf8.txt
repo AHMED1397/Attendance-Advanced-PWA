@@ -1,0 +1,94 @@
+﻿
+E:\Programmes\React Native\ATTENDANCE ADVANCED\app\(tabs)\blacklist.jsx
+  68:6  warning  React Hook useEffect has a missing dependency: 'loadData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\app\(tabs)\index.jsx
+   14:73  warning  'storeSingleData' is defined but never used                                                                                no-unused-vars
+   14:90  warning  'getSigleData' is defined but never used                                                                                   no-unused-vars
+   17:8   warning  'FontAwesome5' is defined but never used                                                                                   no-unused-vars
+   23:10  warning  'seedQadrPlans' is defined but never used                                                                                  no-unused-vars
+   27:16  warning  'setDate' is assigned a value but never used                                                                               no-unused-vars
+   54:16  warning  'e' is defined but never used. Allowed unused args must match /^_/u                                                        no-unused-vars
+   63:14  warning  'e' is defined but never used. Allowed unused args must match /^_/u                                                        no-unused-vars
+  176:6   warning  React Hook useEffect has a missing dependency: 'fetchAttendanceDetails'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\app\(tabs)\settings.jsx
+  11:32  warning  'fontSize' is assigned a value but never used                            no-unused-vars
+  11:42  warning  'fontFamily' is assigned a value but never used                          no-unused-vars
+  37:14  warning  'error' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+  59:24  warning  'e' is defined but never used. Allowed unused args must match /^_/u      no-unused-vars
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\app\(tabs)\summary.jsx
+  11:9  warning  'isDark' is assigned a value but never used  no-unused-vars
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\app\attendanceTable.jsx
+   1:22  warning  'ScrollView' is defined but never used        no-unused-vars
+   2:28  warning  'useRef' is defined but never used            no-unused-vars
+  17:18  warning  Component definition is missing display name  react/display-name
+  88:11  warning  'height' is assigned a value but never used   no-unused-vars
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\app\classAnalytics.jsx
+  3:20  warning  'MaterialCommunityIcons' is defined but never used  no-unused-vars
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\app\prayerAnalytics.jsx
+  37:9  warning  'isDark' is assigned a value but never used                                                                    no-unused-vars
+  63:6  warning  React Hook useEffect has a missing dependency: 'filterData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\app\prayerTable.jsx
+  34:19  warning  Component definition is missing display name  react/display-name
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\app\studentProfile.jsx
+  13:16  warning  'SCREEN_WIDTH' is assigned a value but never used  no-unused-vars
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\app\summarySearch.jsx
+  1:22  warning  'SafeAreaView' is defined but never used  no-unused-vars
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\app\summaryTable.jsx
+    1:22  warning  'SafeAreaView' is defined but never used                                                                                                   no-unused-vars
+   11:18  warning  Component definition is missing display name                                                                                               react/display-name
+   61:7   warning  Expected an assignment or function call and instead saw an expression                                                                      no-unused-expressions
+   62:7   warning  Expected an assignment or function call and instead saw an expression                                                                      no-unused-expressions
+   63:7   warning  Expected an assignment or function call and instead saw an expression                                                                      no-unused-expressions
+   89:44  warning  React Hook useEffect has a missing dependency: 'fetchInitialData'. Either include it or remove the dependency array                        react-hooks/exhaustive-deps
+   95:6   warning  React Hook useEffect has missing dependencies: 'attendanceDetails' and 'detailsMaker'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  109:33  warning  Expected '===' and instead saw '=='                                                                                                        eqeqeq
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\app\timeTable.jsx
+  23:41  warning  React Hook useEffect has a missing dependency: 'loadTimetable'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  29:14  warning  'error' is defined but never used. Allowed unused args must match /^_/u                                           no-unused-vars
+  47:14  warning  'error' is defined but never used. Allowed unused args must match /^_/u                                           no-unused-vars
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\components\AppText.jsx
+  6:23  warning  'fontSize' is assigned a value but never used  no-unused-vars
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\components\AppWrapper.jsx
+  60:37  warning  Expected '===' and instead saw '=='  eqeqeq
+  61:37  warning  Expected '===' and instead saw '=='  eqeqeq
+  62:37  warning  Expected '===' and instead saw '=='  eqeqeq
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\components\QadrProgressModal.jsx
+  40:6  warning  React Hook useEffect has missing dependencies: 'delay', 'fillWidth', and 'glowOpacity'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\replaceStyles.js
+  4:33  error  '__dirname' is not defined  no-undef
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\replaceText.js
+  4:33  error  '__dirname' is not defined  no-undef
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\services\asyncStorage.jsx
+   8:12  warning  'e' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+  17:12  warning  'e' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+  26:12  warning  'e' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+  35:12  warning  'e' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\services\firebase_crud.jsx
+  1:20  warning  'onValue' is defined but never used  no-unused-vars
+
+E:\Programmes\React Native\ATTENDANCE ADVANCED\services\translations.js
+  253:5  error  Duplicate key 'status'  no-dupe-keys
+  255:5  error  Duplicate key 'date'    no-dupe-keys
+  520:5  error  Duplicate key 'status'  no-dupe-keys
+  522:5  error  Duplicate key 'date'    no-dupe-keys
+
+Γ£û 51 problems (6 errors, 45 warnings)
+

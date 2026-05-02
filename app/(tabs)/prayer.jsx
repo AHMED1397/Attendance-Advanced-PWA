@@ -1,83 +1,82 @@
-import { View, Text, SafeAreaView, TouchableOpacity, Platform, ScrollView } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import { View, Text, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
+import React from 'react';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import RNDateTimePicker from '@react-native-community/datetimepicker';
-import { getData } from '../../services/asyncStorage';
-import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { useSettings } from '../../services/SettingsContext';
 import { t } from '../../services/translations';
 
-const PRAYER_LIST = [
-  { key: 'fajr', icon: 'sunny-outline', iconSet: 'ionicons', color: '#F59E0B' },
-  { key: 'dhuhr', icon: 'sunny', iconSet: 'ionicons', color: '#EF4444' },
-  { key: 'asr', icon: 'partly-sunny-outline', iconSet: 'ionicons', color: '#F97316' },
-  { key: 'maghrib', icon: 'cloudy-night-outline', iconSet: 'ionicons', color: '#8B5CF6' },
-  { key: 'isha', icon: 'moon-outline', iconSet: 'ionicons', color: '#3B82F6' },
-  { key: 'thahajjud', icon: 'weather-night', iconSet: 'material', color: '#6366F1' },
-  { key: 'luha', icon: 'mosque', iconSet: 'material', color: '#059669' },
-];
-
-const PrayerIcon = ({ item, size }) => {
-  if (item.iconSet === 'material') {
-    return <MaterialCommunityIcons name={item.icon} size={size} color={item.color} />;
-  }
-  return <Ionicons name={item.icon} size={size} color={item.color} />;
-};
-
 const Prayer = () => {
-  const [date, setDate] = useState(new Date());
-  const [showPicker, setShowPicker] = useState(false);
-  const [className, setClassName] = useState('');
-  const [selectedPrayer, setSelectedPrayer] = useState('');
-  const [classes, setClasses] = useState([]);
   const { primaryColor, theme, language } = useSettings();
   const isDark = theme === 'dark';
-
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      const data = await getData('initialData');
-      if (data !== null) {
-        setClasses(data.classes);
-      }
-    };
-    fetchInitialData();
-  }, []);
-
-  const onDateChange = (event, selectedDate) => {
-    if (selectedDate) setDate(selectedDate);
-    setShowPicker(false);
-  };
-
-  const goToMarkPrayers = () => {
-    if (className === '' || selectedPrayer === '') {
-      alert(t('pleaseFillForm', language));
-      return;
+  const handleNavigation = (route, titleKey) => {
+    if (route === '/quickPrayer') {
+      router.push(route);
+    } else if (route === '/prayerRecent') {
+      // For now, if the route doesn't exist, we can just push it and show a placeholder or handle it later
+      router.push(route);
+    } else {
+      router.push({
+        pathname: '/prayerSetup',
+        params: { nextRoute: route, titleKey }
+      });
     }
-    router.push({
-      pathname: '/prayerTable',
-      params: { date: date.toDateString(), className, prayer: selectedPrayer },
-    });
   };
 
-  const goToAnalytics = () => {
-    if (className === '') {
-      alert(t('pleaseFillForm', language));
-      return;
+  const stackCards = [
+    {
+      id: 'fast',
+      titleKey: 'fast', // or 'quickMark'
+      subKey: 'quickMarkSub',
+      icon: 'flash',
+      iconSet: 'ionicons',
+      color: '#F59E0B',
+      bgColor: '#F59E0B15',
+      route: '/quickPrayer'
+    },
+    {
+      id: 'classByClass',
+      titleKey: 'classByClass',
+      subKey: 'selectClassForPrayer',
+      icon: 'school',
+      iconSet: 'ionicons',
+      color: primaryColor,
+      bgColor: `${primaryColor}15`,
+      route: '/prayerTable'
+    },
+    {
+      id: 'classOverview',
+      titleKey: 'classLevelOverview',
+      subKey: 'classLevelOverviewSub',
+      icon: 'bar-chart',
+      iconSet: 'ionicons',
+      color: '#3B82F6',
+      bgColor: '#3B82F615',
+      route: '/prayerAnalytics'
+    },
+    {
+      id: 'studentOverview',
+      titleKey: 'studentOverview',
+      subKey: 'studentOverviewSub',
+      icon: 'person',
+      iconSet: 'ionicons',
+      color: '#8B5CF6',
+      bgColor: '#8B5CF615',
+      route: '/studentPrayerOverview'
+    },
+    {
+      id: 'recentData',
+      titleKey: 'recentDataCard',
+      subKey: 'recentDataCardSub',
+      icon: 'time',
+      iconSet: 'ionicons',
+      color: '#10B981',
+      bgColor: '#10B98115',
+      route: '/prayerRecent' // Need to create or map to existing recent data screen
     }
-    router.push({
-      pathname: '/prayerAnalytics',
-      params: { className },
-    });
-  };
-
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-
-  const selectedPrayerData = PRAYER_LIST.find(p => p.key === selectedPrayer);
+  ];
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -87,156 +86,67 @@ const Prayer = () => {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <Animated.View entering={FadeInDown.duration(600).springify()} className="px-5 pt-8 pb-2">
+        <Animated.View entering={FadeInDown.duration(600).springify()} className="px-5 pt-8 pb-4">
           <View className="flex-row items-center mb-1">
             <View 
-              className="w-10 h-10 rounded-xl items-center justify-center mr-3"
+              className="w-12 h-12 rounded-xl items-center justify-center mr-4"
               style={{ backgroundColor: `${primaryColor}15` }}
             >
-              <MaterialCommunityIcons name="mosque" size={20} color={primaryColor} />
-            </View>
-            <View>
-              <Text className="text-2xl font-bold text-text-main">{t('markPrayers', language)}</Text>
-              <Text className="text-text-sub text-xs mt-0.5">{t('selectClassForPrayer', language)}</Text>
-            </View>
-          </View>
-        </Animated.View>
-
-        {/* Date Picker Card */}
-        <Animated.View entering={FadeInUp.delay(100).duration(600).springify()} className="px-5 mt-5">
-          <Text className="text-text-sub text-xs font-semibold uppercase tracking-wider mb-2 ml-1">{t('date', language)}</Text>
-          <TouchableOpacity
-            onPress={() => setShowPicker(true)}
-            className="bg-surface rounded-2xl p-4 flex-row items-center border border-slate-50"
-            style={{ shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 12, elevation: 3 }}
-            activeOpacity={0.7}
-          >
-            <View 
-              className="w-12 h-12 rounded-2xl items-center justify-center mr-4"
-              style={{ backgroundColor: `${primaryColor}15` }}
-            >
-              <Text style={{ color: primaryColor }} className="text-lg font-bold">{date.getDate()}</Text>
+              <MaterialCommunityIcons name="mosque" size={24} color={primaryColor} />
             </View>
             <View className="flex-1">
-              <Text className="text-text-main font-semibold text-base">
-                {days[date.getDay()]}, {months[date.getMonth()]} {date.getDate()}
-              </Text>
-              <Text className="text-text-sub text-xs mt-0.5">{date.getFullYear()}</Text>
+              <Text className="text-2xl font-bold text-text-main">{t('prayer', language)}</Text>
+              <Text className="text-text-sub text-sm mt-0.5">{t('markPrayers', language)}</Text>
             </View>
-            <Ionicons name="calendar" size={20} color={primaryColor} />
-          </TouchableOpacity>
-          {showPicker && (
-            <RNDateTimePicker
-              mode="date"
-              value={date}
-              display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              onChange={onDateChange}
-            />
-          )}
+          </View>
         </Animated.View>
 
-        {/* Class Selector Card */}
-        <Animated.View entering={FadeInUp.delay(200).duration(600).springify()} className="px-5 mt-5">
-          <Text className="text-text-sub text-xs font-semibold uppercase tracking-wider mb-2 ml-1">{t('class', language)}</Text>
-          <View 
-            className="bg-surface rounded-2xl border border-slate-50 overflow-hidden"
-            style={{ shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 12, elevation: 3 }}
-          >
-            <View className="flex-row items-center px-4">
-              <View 
-                className="w-9 h-9 rounded-xl items-center justify-center mr-3"
-                style={{ backgroundColor: `${primaryColor}15` }}
+        {/* Stack Cards */}
+        <View className="px-5 mt-2 gap-4">
+          {stackCards.map((card, index) => (
+            <Animated.View 
+              key={card.id} 
+              entering={FadeInUp.delay(50 + index * 100).duration(600).springify()}
+            >
+              <TouchableOpacity 
+                onPress={() => handleNavigation(card.route, card.titleKey)}
+                className="bg-surface p-5 rounded-[24px] flex-row items-center border border-slate-100 shadow-sm"
+                activeOpacity={0.7}
+                style={{
+                  shadowColor: '#000', 
+                  shadowOpacity: 0.04, 
+                  shadowRadius: 12, 
+                  elevation: 2 
+                }}
               >
-                <Ionicons name="school" size={16} color={primaryColor} />
-              </View>
-              <View className="flex-1">
-                <Picker
-                  selectedValue={className}
-                  onValueChange={(itemValue) => setClassName(itemValue)}
-                  style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}
+                <View 
+                  className="w-14 h-14 rounded-2xl items-center justify-center mr-4"
+                  style={{ backgroundColor: card.bgColor }}
                 >
-                  <Picker.Item label={t('selectClass', language)} value="" color="#94A3B8" />
-                  {classes.map((item, index) => (
-                    <Picker.Item key={index} label={item} value={item} />
-                  ))}
-                </Picker>
-              </View>
-            </View>
-          </View>
-        </Animated.View>
-
-        {/* Prayer Selector */}
-        <Animated.View entering={FadeInUp.delay(300).duration(600).springify()} className="px-5 mt-5">
-          <Text className="text-text-sub text-xs font-semibold uppercase tracking-wider mb-2 ml-1">{t('prayer', language)}</Text>
-          <View className="flex-row flex-wrap gap-2.5">
-            {PRAYER_LIST.map((p) => {
-              const isSelected = selectedPrayer === p.key;
-              return (
-                <TouchableOpacity
-                  key={p.key}
-                  onPress={() => setSelectedPrayer(p.key)}
-                  className="flex-row items-center rounded-2xl px-4 py-3 border-2"
-                  style={{
-                    borderColor: isSelected ? p.color : 'transparent',
-                    backgroundColor: isSelected ? `${p.color}12` : (isDark ? '#1E293B' : '#F8FAFC'),
-                    shadowColor: '#000',
-                    shadowOpacity: isSelected ? 0.08 : 0.02,
-                    shadowRadius: 8,
-                    elevation: isSelected ? 4 : 1,
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View 
-                    className="w-8 h-8 rounded-xl items-center justify-center mr-2.5"
-                    style={{ backgroundColor: `${p.color}20` }}
-                  >
-                    <PrayerIcon item={p} size={16} />
-                  </View>
-                  <Text 
-                    className="text-sm font-semibold"
-                    style={{ color: isSelected ? p.color : (isDark ? '#94A3B8' : '#64748B') }}
-                  >
-                    {t(p.key, language)}
-                  </Text>
-                  {isSelected && (
-                    <View className="ml-2">
-                      <Ionicons name="checkmark-circle" size={16} color={p.color} />
-                    </View>
+                  {card.iconSet === 'material' ? (
+                    <MaterialCommunityIcons name={card.icon} size={28} color={card.color} />
+                  ) : (
+                    <Ionicons name={card.icon} size={28} color={card.color} />
                   )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </Animated.View>
+                </View>
+                
+                <View className="flex-1">
+                  <Text className="text-text-main font-bold text-lg mb-1">{t(card.titleKey, language)}</Text>
+                  <Text className="text-text-sub text-xs leading-4 pr-2">{t(card.subKey, language)}</Text>
+                </View>
 
-        {/* CTA Buttons */}
-        <Animated.View entering={FadeInUp.delay(400).duration(600).springify()} className="px-5 mt-8">
-          <TouchableOpacity
-            style={{ backgroundColor: selectedPrayerData ? selectedPrayerData.color : primaryColor }}
-            className="rounded-2xl p-4 flex-row items-center justify-center mb-3"
-            onPress={goToMarkPrayers}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="checkbox-outline" size={20} color="white" />
-            <Text className="text-white font-bold text-base ml-2">
-              {selectedPrayer ? `${t('mark', language)} ${t(selectedPrayer, language)}` : t('markPrayers', language)}
-            </Text>
-            <View className="flex-1" />
-            <Ionicons name={language === 'ar' ? "arrow-back" : "arrow-forward"} size={18} color="white" />
-          </TouchableOpacity>
+                <View className="ml-2 w-8 h-8 rounded-full items-center justify-center bg-slate-50 dark:bg-slate-800">
+                  <Ionicons 
+                    name={language === 'ar' ? 'chevron-back' : 'chevron-forward'} 
+                    size={16} 
+                    color={isDark ? '#94A3B8' : '#64748B'} 
+                  />
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          ))}
+        </View>
 
-          <TouchableOpacity
-            className="rounded-2xl p-4 flex-row items-center justify-center border-2"
-            style={{ borderColor: primaryColor, backgroundColor: `${primaryColor}08` }}
-            onPress={goToAnalytics}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="bar-chart-outline" size={20} color={primaryColor} />
-            <Text style={{ color: primaryColor }} className="font-bold text-base ml-2">{t('viewAnalytics', language)}</Text>
-            <View className="flex-1" />
-            <Ionicons name={language === 'ar' ? "arrow-back" : "arrow-forward"} size={18} color={primaryColor} />
-          </TouchableOpacity>
-        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );

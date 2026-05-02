@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { Picker } from '@react-native-picker/picker'
 import { getData } from '../services/asyncStorage';
-import RNDateTimePicker from '@react-native-community/datetimepicker';
+import DatePickerCross from '../components/DatePickerCross';
 import { useRouter } from 'expo-router';
 import { useSettings } from '../services/SettingsContext';
 import { t } from '../services/translations';
@@ -87,8 +87,8 @@ const SummarySearch = () => {
             <DateChip label={t('from', language)} date={fromDate} onPress={() => setShowFromPicker(true)} />
             <DateChip label={t('to', language)} date={toDate} onPress={() => setShowToPicker(true)} />
           </View>
-          {showFromPicker && <RNDateTimePicker mode="date" value={fromDate} display={Platform.OS === 'ios' ? 'inline' : 'default'} onChange={(e, d) => { if (d) setFromDate(d); setShowFromPicker(false); }} />}
-          {showToPicker && <RNDateTimePicker mode="date" value={toDate} display={Platform.OS === 'ios' ? 'inline' : 'default'} onChange={(e, d) => { if (d) setToDate(d); setShowToPicker(false); }} />}
+          {showFromPicker && <DatePickerCross mode="date" value={fromDate} display={Platform.OS === 'ios' ? 'inline' : 'default'} onChange={(e, d) => { if (d) setFromDate(d); setShowFromPicker(false); }} isDark={isDark} />}
+          {showToPicker && <DatePickerCross mode="date" value={toDate} display={Platform.OS === 'ios' ? 'inline' : 'default'} onChange={(e, d) => { if (d) setToDate(d); setShowToPicker(false); }} isDark={isDark} />}
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(400).duration(600).springify()} className="px-5 mt-8">

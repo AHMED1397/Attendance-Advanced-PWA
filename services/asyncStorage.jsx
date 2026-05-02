@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
-import { updateUserData, writeUserData } from "./firebase_crud";
+import { updateUserData, writeUserData, readUserData } from "./firebase_crud";
 
 const storeSingleData = async (value, name) => {
   try {
@@ -57,12 +57,28 @@ const syncData = async () => {
   if (state.isConnected) {
     const allData = await getData("attendanceDetails");
     if (allData && allData.length > 0) {
-      // Get userName from storage. Since it's stored as an object via storeData, we use getData
       const userData = await getData("userName");
-      const teacherName = userData ? userData.name : (allData[0].Teacher ? JSON.parse(allData[0].Teacher).name : null);
+      const teacherName = userData ? (typeof userData === 'string' ? userData : userData.name) : (allData[0].Teacher ? JSON.parse(allData[0].Teacher).name : null);
       
       if(teacherName) {
         try {
+            // Pre-flight check: fetch latest blacklist and resolve offline conflicts
+            const latestBlacklist = await readUserData('blacklist');
+            if (latestBlacklist) {
+              // Update local cache so next offline use has the latest data
+              await storeData(latestBlacklist, 'blacklistData');
+
+              // Override attendance to false for blacklisted students
+              allData.forEach(record => {
+                if (record.Attendance) {
+                  Object.keys(record.Attendance).forEach(rollNo => {
+                    if (latestBlacklist[rollNo] && latestBlacklist[rollNo].className === record.Class) {
+                      record.Attendance[rollNo] = false;
+                    }
+                  });
+                }
+              });
+            }
             // Upload ALL data to overwrite/update Firebase
             await writeUserData(`attendanceDetails/${teacherName}`, allData);
             
@@ -108,7 +124,7 @@ const syncPrayerData = async () => {
     const allData = await getData("prayerDetails");
     if (allData && allData.length > 0) {
       const userData = await getData("userName");
-      const teacherName = userData ? userData.name : null;
+      const teacherName = userData ? (typeof userData === 'string' ? userData : userData.name) : null;
       
       if (teacherName) {
         try {
@@ -132,6 +148,34 @@ const getPrayerPendingCount = async () => {
   return data.filter(item => item.synced === false).length;
 };
 
+const syncPrayerFromFB = async () => {
+  const state = await NetInfo.fetch();
+  if (state.isConnected) {
+    try {
+      const fbData = await readUserData("prayerDetails");
+      if (fbData) {
+        let allData = [];
+        // fbData is an object where keys are teacher names and values are arrays/objects of records
+        Object.values(fbData).forEach(teacherRecords => {
+          if (teacherRecords) {
+            const recordsArray = Array.isArray(teacherRecords) 
+              ? teacherRecords 
+              : Object.values(teacherRecords);
+            allData = allData.concat(recordsArray.filter(Boolean));
+          }
+        });
+        await storeData(allData, "prayerDetails");
+        return allData;
+      } else {
+        return [];
+      }
+    } catch (error) {
+      console.log("Failed to sync prayer from FB:", error);
+    }
+  }
+  return null;
+};
+
 // Deprecated or Unused internal helper replaced by syncData logic, keeping for compatibility if needed elsewhere but likely not.
 const updateinFB = async (userName, id, updatedAttendance) => {
   const state = await NetInfo.fetch();
@@ -140,5 +184,5 @@ const updateinFB = async (userName, id, updatedAttendance) => {
   }
 };
 
-export { storeSingleData, storeData, getSigleData, getData, storeAttendance, updateinFB, syncData, getPendingCount, storePrayer, syncPrayerData, getPrayerPendingCount };
+export { storeSingleData, storeData, getSigleData, getData, storeAttendance, updateinFB, syncData, getPendingCount, storePrayer, syncPrayerData, getPrayerPendingCount, syncPrayerFromFB };
 

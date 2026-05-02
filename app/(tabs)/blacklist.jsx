@@ -61,6 +61,7 @@ const Blacklist = () => {
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedStudents, setSelectedStudents] = useState([]);
   const [blockReason, setBlockReason] = useState("");
+  const [blockDuration, setBlockDuration] = useState("permanent"); // "permanent", "1", "3", "7", "30"
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -86,8 +87,24 @@ const Blacklist = () => {
     try {
       const netState = await NetInfo.fetch();
       if (netState.isConnected) {
-        const data = await readUserData("blacklist");
+        let data = await readUserData("blacklist");
         if (data) {
+          // Cleanup expired entries
+          const now = new Date();
+          let hasExpired = false;
+          const entries = Object.entries(data);
+          for (const [rollNo, entry] of entries) {
+            if (entry.expiresAt && new Date(entry.expiresAt) < now) {
+              await deleteUserData("blacklist/" + rollNo);
+              if (entry.blockId) {
+                await writeUserData(`blacklistHistory/${rollNo}/${entry.blockId}/status`, 'expired');
+                await writeUserData(`blacklistHistory/${rollNo}/${entry.blockId}/unblockedBy`, 'System (Expired)');
+                await writeUserData(`blacklistHistory/${rollNo}/${entry.blockId}/unblockedAt`, now.toISOString());
+              }
+              delete data[rollNo];
+              hasExpired = true;
+            }
+          }
           setBlacklistData(data);
           await storeData(data, "blacklistData");
         } else {
@@ -117,6 +134,13 @@ const Blacklist = () => {
       const netState = await NetInfo.fetch();
       let updated = { ...blacklistData };
       const timestamp = new Date().toISOString();
+      let expiresAt = null;
+      if (blockDuration !== "permanent") {
+        const days = parseInt(blockDuration);
+        if (!isNaN(days)) {
+          expiresAt = new Date(new Date().getTime() + days * 24 * 60 * 60 * 1000).toISOString();
+        }
+      }
 
       for (const rollNo of selectedStudents) {
         const studentName = initialData?.students?.[selectedClass]?.[rollNo] || "";
@@ -127,6 +151,8 @@ const Blacklist = () => {
           reason: blockReason.trim(),
           blockedBy: userName,
           blockedAt: timestamp,
+          expiresAt: expiresAt,
+          duration: blockDuration,
           blockId: blockId
         };
         if (netState.isConnected) {
@@ -143,6 +169,7 @@ const Blacklist = () => {
       setSelectedClass("");
       setSelectedStudents([]);
       setBlockReason("");
+      setBlockDuration("permanent");
       crossAlert(t("studentBlocked", language), t("studentBlockedMsg", language));
     } catch (error) {
       console.error("Error blocking student:", error);
@@ -317,6 +344,14 @@ const Blacklist = () => {
                         <Text style={{ fontSize: 10, fontWeight: "bold", textTransform: "uppercase", letterSpacing: 1, marginLeft: 4, color: "#DC2626" }}>{t("blockReason", language)}</Text>
                       </View>
                       <Text style={{ fontSize: 14, fontWeight: "500", color: isDark ? "#FCA5A5" : "#991B1B" }}>{entry.reason}</Text>
+                      {entry.expiresAt && (
+                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: isDark ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.4)" }}>
+                          <Ionicons name="time-outline" size={12} color={isDark ? "#FCA5A5" : "#991B1B"} />
+                          <Text style={{ fontSize: 10, marginLeft: 4, fontWeight: "bold", color: isDark ? "#FCA5A5" : "#991B1B" }}>
+                            {t("expiryDate", language)}: {new Date(entry.expiresAt).toLocaleDateString()}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                     {/* Footer */}
                     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
@@ -440,6 +475,48 @@ const Blacklist = () => {
                   numberOfLines={3}
                   style={{ padding: 16, minHeight: 80, textAlignVertical: "top", color: isDark ? "#F8FAFC" : "#0F172A", fontSize: 14 }}
                 />
+              </View>
+
+              {/* Duration Input (Stepper) */}
+              <Text style={{ fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, color: "#64748B" }}>{t("blockDuration", language)}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? "#0F172A" : "#F8FAFC", borderRadius: 16, borderWidth: 1, borderColor: isDark ? "#334155" : "#E2E8F0", marginBottom: 16, padding: 4 }}>
+                <TouchableOpacity 
+                  onPress={() => {
+                    const current = blockDuration === 'permanent' ? 0 : parseInt(blockDuration);
+                    if (current > 0) setBlockDuration((current - 1).toString() || 'permanent');
+                    if (current === 1) setBlockDuration('permanent');
+                  }}
+                  style={{ padding: 12 }}
+                >
+                  <Ionicons name="remove-circle-outline" size={28} color={primaryColor} />
+                </TouchableOpacity>
+                
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                  <TextInput
+                    value={blockDuration === 'permanent' ? '0' : blockDuration}
+                    onChangeText={(v) => {
+                      const clean = v.replace(/[^0-9]/g, '');
+                      setBlockDuration(clean === '0' || clean === '' ? 'permanent' : clean);
+                    }}
+                    placeholder="0"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="number-pad"
+                    style={{ color: isDark ? "#F8FAFC" : "#0F172A", fontSize: 20, fontWeight: 'bold', textAlign: 'center', width: '100%' }}
+                  />
+                  <Text style={{ fontSize: 10, color: "#64748B", marginTop: -4 }}>
+                    {blockDuration === 'permanent' ? t("permanent", language) : t("days", language)}
+                  </Text>
+                </View>
+
+                <TouchableOpacity 
+                  onPress={() => {
+                    const current = blockDuration === 'permanent' ? 0 : parseInt(blockDuration);
+                    setBlockDuration((current + 1).toString());
+                  }}
+                  style={{ padding: 12 }}
+                >
+                  <Ionicons name="add-circle-outline" size={28} color={primaryColor} />
+                </TouchableOpacity>
               </View>
 
               {/* Selected student preview */}

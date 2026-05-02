@@ -4,5 +4,5 @@ Once you have made changes to your code and you are ready to send them to all us
 Open your terminal in the project folder.
 Run this command:
 bash
-npx eas update --branch preview --message "Description of your changes"
+npx eas update --branch preview --message "Advanced Blacklist & Blacklist History & Dashboard Filters"
 That's it! The next time your users open the app, they will see the "Update Available" popup we created.

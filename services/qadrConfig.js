@@ -17,7 +17,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 /**
  * Fetch all qadr plans from Firebase (with caching).
  */
-const fetchAllQadrPlans = async () => {
+export const fetchAllQadrPlans = async () => {
   const now = Date.now();
   if (qadrCache && (now - lastFetchTime) < CACHE_DURATION) {
     return qadrCache;
@@ -48,7 +48,7 @@ export const clearQadrCache = () => {
  * Find a matching qadr config for the given class and subject.
  * Fetches from Firebase. Returns the config object if found, or null.
  */
-export const fetchQadrConfig = async (className, subject) => {
+export const fetchQadrConfig = async (className, subject, teacherName) => {
   if (!className || !subject) return null;
 
   const plans = await fetchAllQadrPlans();
@@ -96,9 +96,23 @@ export const fetchQadrConfig = async (className, subject) => {
   if (config) {
     config._className = className;
     config._subjectKey = subject;
+    config._teacherName = teacherName;
+    
+    // Inject teacher specific progress
+    if (teacherName && config.teacherProgress && config.teacherProgress[teacherName]) {
+      config.currentProgress = config.teacherProgress[teacherName];
+    } else if (!config.currentProgress) {
+      // Only set to null if there's no existing currentProgress on the config
+      config.currentProgress = null;
+    }
   }
 
   return config || null;
+};
+
+export const getProgressSavePath = (config) => {
+  if (!config._teacherName) return `qadrPlans/${config._className}/${config._subjectKey}/currentProgress`;
+  return `qadrPlans/${config._className}/${config._subjectKey}/teacherProgress/${config._teacherName}`;
 };
 
 /**
@@ -244,9 +258,73 @@ export const calculateThafseerProgress = (config) => {
 /**
  * Generic progress calculator — dispatches based on type.
  */
-export const calculateQadrProgress = (config) => {
-  if (config.type === 'thafseer') {
-    return calculateThafseerProgress(config);
+export const calculateProgress = (config) => {
+  if (config.surahDetails || config.type === 'thafseer') {
+    // Adapter for new QadrProgressModal that expects unified return format
+    const t = calculateThafseerProgress(config);
+    return {
+      progressType: 'surah_ayah',
+      activeSurah: t.currentSurah || (t.allSurahs.length > 0 && !t.completedSurahs.includes(t.allSurahs[0]) ? t.allSurahs[0] : null),
+      maxAyah: t.currentSurah ? (config.surahDetails[t.currentSurah]?.ayahCount || 0) : 0,
+      allSurahs: t.allSurahs,
+      completedSurahs: t.completedSurahs,
+      totalSurahs: t.allSurahs.length,
+      completedWeight: t.completedPages,
+      totalWeight: t.totalPages,
+      examTotalWeight: t.examTotalPages,
+      currentValue: null,
+      rangeStart: null,
+      rangeEnd: null,
+      examLabel: t.examLabel,
+      isPastMid: t.isMidYearComplete,
+      midYearEnd: null,
+      remaining: t.totalPages - t.completedPages,
+      wholeYearPercentage: t.wholeYearPercentage,
+      midPercentage: t.midPercentage,
+      examPercentage: t.examPercentage,
+    };
   }
-  return calculateHadeesProgress(config);
+
+  const h = calculateHadeesProgress(config);
+  
+  // Handle multi-book array structure
+  if (config.books) {
+    const bookIdx = (typeof config.currentProgress === 'object' && config.currentProgress !== null) ? (config.currentProgress.bookIndex || 0) : 0;
+    const currentVal = (typeof config.currentProgress === 'object' && config.currentProgress !== null) ? (config.currentProgress.currentValue || config.books[bookIdx].start) : config.books[bookIdx].start;
+    const book = config.books[bookIdx];
+    
+    const rangeStart = book.start;
+    const rangeEnd = book.end;
+    const totalRange = rangeEnd - rangeStart;
+    const completed = currentVal - rangeStart;
+    const pct = totalRange > 0 ? (completed / totalRange) * 100 : 0;
+    
+    return {
+      progressType: 'multi_book',
+      currentValue: currentVal,
+      rangeStart,
+      rangeEnd,
+      examLabel: book.examPeriod === 'midYear' ? 'النصفي' : 'النهائي',
+      isPastMid: book.examPeriod !== 'midYear',
+      midYearEnd: book.midYearEnd,
+      remaining: rangeEnd - currentVal,
+      wholeYearPercentage: pct,
+      midPercentage: 0,
+      examPercentage: pct,
+    };
+  }
+
+  return {
+    progressType: 'number',
+    currentValue: h.currentNumber,
+    rangeStart: config.start,
+    rangeEnd: config.end,
+    examLabel: h.examLabel,
+    isPastMid: h.isPastMid,
+    midYearEnd: config.midYearEnd,
+    remaining: h.remaining,
+    wholeYearPercentage: h.wholeYearPercentage,
+    midPercentage: h.midPercentage,
+    examPercentage: h.examPercentage,
+  };
 };

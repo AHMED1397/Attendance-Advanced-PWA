@@ -2,7 +2,7 @@ import { View, Text, SafeAreaView, TouchableOpacity, Platform, ScrollView } from
 import React, { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import RNDateTimePicker from '@react-native-community/datetimepicker';
+import DatePickerCross from '../../components/DatePickerCross';
 import { getData } from '../../services/asyncStorage';
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
@@ -98,11 +98,12 @@ const Marker = () => {
             <Ionicons name="calendar" size={20} color={primaryColor} />
           </TouchableOpacity>
           {showPicker && (
-            <RNDateTimePicker
+            <DatePickerCross
               mode="date"
               value={date}
               display={Platform.OS === 'ios' ? 'inline' : 'default'}
               onChange={onDateChange}
+              isDark={isDark}
             />
           )}
         </Animated.View>
